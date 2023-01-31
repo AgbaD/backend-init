@@ -1,0 +1,9 @@
+{
+  "development": {
+    "username": "dami",
+    "password": "root",
+    "database": "graphql-express",
+    "host": "127.0.0.1",
+    "dialect": "postgresql"
+  }
+}

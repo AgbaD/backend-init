@@ -1,6 +1,8 @@
 const express = require('express');
 const { graphqlHTTP } = require('express-graphql');
 
+const { sequelize, User, Post} = require('./models');
+
 const {
     GraphQLSchema,
     GraphQLObjectType,
@@ -11,23 +13,6 @@ const {
 } = require('graphql')
 
 
-const users = [
-    { id: 1, name: 'J. K. Rowling' },
-    { id: 2, name: 'J. R. R. Tolkien' },
-    { id: 3, name: 'Brent Weeks' }
-]
-
-const posts = [
-    { id: 1, title: 'Harry Potter and the Chamber of Secrets', userId: 1 },
-    { id: 2, title: 'Harry Potter and the Prisoner of Azkaban', userId: 1 },
-    { id: 3, title: 'Harry Potter and the Goblet of Fire', userId: 1 },
-    { id: 4, title: 'The Fellowship of the Ring', userId: 2 },
-    { id: 5, title: 'The Two Towers', userId: 2 },
-    { id: 6, title: 'The Return of the King', userId: 2 },
-    { id: 7, title: 'The Way of Shadows', userId: 3 },
-    { id: 8, title: 'Beyond the Shadows', userId: 3 }
-]
-
 const UserType = new GraphQLObjectType({
     name: "User",
     description: "A User in our application",
@@ -36,9 +21,11 @@ const UserType = new GraphQLObjectType({
         name: { type: GraphQLNonNull(GraphQLString) },
         posts: {
             type: new GraphQLList(PostType),
-            resolve: (user) => {
-                return posts.filter(post => post.userId === user.id)
-            }
+            resolve: (user) => Post.findAll({
+                where: {
+                    userId: user.id
+                }
+            })
         }
     })
 })
@@ -52,9 +39,11 @@ const PostType = new GraphQLObjectType({
         userId: { type: GraphQLNonNull(GraphQLInt) },
         user: {
             type: UserType,
-            resolve: (post) => {
-                return users.find(user => user.id === post.userId)
-            }
+            resolve: (post) => User.findOne({
+                where: {
+                    id: post.userId
+                }
+            })
         }
     })
 })
@@ -67,12 +56,12 @@ const rootQuery = new GraphQLObjectType({
         posts: {
             type: new GraphQLList(PostType),
             description: 'List of posts',
-            resolve: () => posts
+            resolve: () => Post.findAll()
         },
         users: {
             type: new GraphQLList(UserType),
             description: 'List of users',
-            resolve: () => users
+            resolve: () => User.findAll()
         },
         post: {
             type: PostType,
@@ -80,7 +69,11 @@ const rootQuery = new GraphQLObjectType({
             args: {
                 id: { type: GraphQLInt }
             },
-            resolve: (parent, args) => posts.find(book => book.id === args.id)
+            resolve: (parent, args) => Post.findOne({
+                where: {
+                    id: args.id
+                }
+            })
         },
         user: {
             type: UserType,
@@ -88,7 +81,11 @@ const rootQuery = new GraphQLObjectType({
             args: {
                 id: { type: GraphQLInt }
             },
-            resolve: (parent, args) => users.find(user => user.id === args.id)
+            resolve: (parent, args) => User.findOne({
+                where: {
+                    id: args.id
+                }
+            })
         }
     })
 })
@@ -97,6 +94,19 @@ const rootMutation = new GraphQLObjectType({
     name: "Mutation",
     description: "Root Mutation",
     fields: () => ({
+        addUser: {
+            type: UserType,
+            description: 'Add a user',
+            args: {
+                name: { type: GraphQLNonNull(GraphQLString) }
+            },
+            resolve: (parent, args) => {
+                const user = User.create({
+                    name: args.name
+                })
+                return user
+            } 
+        },
         addPost: {
             type: PostType,
             description: 'Add a post',
@@ -105,13 +115,11 @@ const rootMutation = new GraphQLObjectType({
                 userId: { type: GraphQLNonNull(GraphQLInt) }
             },
             resolve: (parent, args) => {
-                const post = {
-                    id: posts.length + 1,
+                const post = Post.create({
                     title: args.title,
                     userId: args.userId
-                }
-                posts.push(post)
-                return book
+                })
+                return post
             }
         }
     })
@@ -129,4 +137,8 @@ app.use('/graphql', graphqlHTTP({
     schema: schema,
     graphiql: true
 }))
-app.listen(5000, () => (console.log("Running")))
+
+app.listen(5000, async () => {
+    await sequelize.authenticate()
+    console.log("Running")
+})

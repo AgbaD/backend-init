@@ -1,0 +1,6 @@
+Authlib
+Flask
+Flask-Cors
+Flask-SQLAlchemy
+python-dotenv
+SQLAlchemy
